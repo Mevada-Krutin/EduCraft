@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import VideoPlayer from '../components/VideoPlayer';
+import CourseQuiz from '../components/CourseQuiz';
+import CourseReviews from '../components/CourseReviews';
 import { PlayCircle, CheckCircle, ChevronRight, GraduationCap } from 'lucide-react';
 import Confetti from 'react-confetti';
 
@@ -20,6 +22,7 @@ const CourseDetail = () => {
     const [completedVideos, setCompletedVideos] = useState([]);
     const [courseProgress, setCourseProgress] = useState(0);
     const [showConfetti, setShowConfetti] = useState(false);
+    const [isTakingQuiz, setIsTakingQuiz] = useState(false);
 
     useEffect(() => {
         const fetchCourseAndEnrollment = async () => {
@@ -61,10 +64,10 @@ const CourseDetail = () => {
         setEnrolling(true);
         try {
             const config = { headers: { Authorization: `Bearer ${user.token}` } };
+            
             await axios.post('http://localhost:5000/api/users/enroll', { courseId: id }, config);
             setIsEnrolled(true);
             setEnrolling(false);
-            // Optionally fetch enrollment details again to ensure state is completely in sync
         } catch (err) {
             setError(err.response?.data?.message || 'Error enrolling in course');
             setEnrolling(false);
@@ -138,10 +141,20 @@ const CourseDetail = () => {
             </div>
 
             <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
-                {/* Main Content (Video Player) */}
+                {/* Main Content (Video Player or Quiz) */}
                 <div>
                     {isEnrolled ? (
-                        activeVideo ? (
+                        isTakingQuiz ? (
+                            <CourseQuiz 
+                                courseId={course._id} 
+                                quizzes={course.quizzes} 
+                                token={user.token} 
+                                onPass={() => {
+                                    setShowConfetti(true);
+                                    setTimeout(() => setShowConfetti(false), 6000);
+                                }}
+                            />
+                        ) : activeVideo ? (
                             <VideoPlayer
                                 videoUrl={activeVideo.url}
                                 title={activeVideo.title}
@@ -169,6 +182,18 @@ const CourseDetail = () => {
                             {course.description}
                         </p>
                     </div>
+
+                    <CourseReviews 
+                        courseId={course._id}
+                        reviews={course.reviews || []}
+                        rating={course.rating || 0}
+                        numReviews={course.numReviews || 0}
+                        isEnrolled={isEnrolled}
+                        user={user}
+                        onReviewAdded={() => {
+                            axios.get(`http://localhost:5000/api/courses/${id}`).then(res => setCourse(res.data));
+                        }}
+                    />
                 </div>
 
                 {/* Sidebar (Course Curriculum) */}
@@ -224,6 +249,41 @@ const CourseDetail = () => {
                             ))
                         ) : (
                             <p className="text-secondary text-center py-4">Syllabus coming soon</p>
+                        )}
+                        
+                        {/* Final Exam Section */}
+                        {course.quizzes && course.quizzes.length > 0 && (
+                            <div
+                                onClick={() => {
+                                    if (isEnrolled && courseProgress === 100) {
+                                        setIsTakingQuiz(true);
+                                        setActiveVideo(null);
+                                    } else {
+                                        alert('You must complete all videos before taking the final exam.');
+                                    }
+                                }}
+                                style={{
+                                    padding: '1rem',
+                                    borderRadius: '0.5rem',
+                                    marginBottom: '0.5rem',
+                                    cursor: isEnrolled && courseProgress === 100 ? 'pointer' : 'not-allowed',
+                                    backgroundColor: isTakingQuiz ? 'rgba(99,102,241,0.1)' : 'transparent',
+                                    borderLeft: isTakingQuiz ? '4px solid #818cf8' : '4px solid transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    opacity: isEnrolled && courseProgress === 100 ? 1 : 0.5
+                                }}
+                                className={isEnrolled && courseProgress === 100 ? 'hover:bg-slate-800 transition' : ''}
+                            >
+                                <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', flexShrink: 0 }}>
+                                    Q
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Final Exam</h4>
+                                    <span className="text-secondary text-sm">Required for Certificate</span>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>

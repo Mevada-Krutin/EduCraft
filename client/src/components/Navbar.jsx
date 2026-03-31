@@ -17,6 +17,12 @@ const Navbar = () => {
                 <Link to="/courses" className="nav-link">Explore</Link>
                 {user ? (
                     <>
+                        {user.role === 'instructor' && (
+                            <Link to="/instructor/dashboard" className="nav-link">Instructor Portal</Link>
+                        )}
+                        {user.role === 'admin' && (
+                            <Link to="/admin/dashboard" className="nav-link">Admin Portal</Link>
+                        )}
                         <Link to="/dashboard" className="nav-link flex items-center gap-2">
                             <User size={18} /> Dashboard
                         </Link>

@@ -18,7 +18,9 @@ const Dashboard = () => {
                     },
                 };
                 const { data } = await axios.get('http://localhost:5000/api/users/enrollments', config);
-                setEnrollments(data);
+                // Filter out enrollments if the corresponding course was deleted
+                const validEnrollments = data.filter(e => e.course != null);
+                setEnrollments(validEnrollments);
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching enrollments:', error);
@@ -115,9 +117,27 @@ const Dashboard = () => {
                                     <span>Progress</span>
                                     <span style={{ fontWeight: 600 }}>{enrollment.progress}%</span>
                                 </div>
-                                <div style={{ width: '100%', backgroundColor: '#334155', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: '100%', backgroundColor: '#334155', height: '6px', borderRadius: '3px', overflow: 'hidden', marginBottom: enrollment.progress === 100 ? '1rem' : '0' }}>
                                     <div style={{ width: `${enrollment.progress}%`, backgroundColor: '#10b981', height: '100%' }}></div>
                                 </div>
+                                {enrollment.progress === 100 && (!enrollment.course?.quizzes?.length || enrollment.passedQuiz) && (
+                                    <a 
+                                        href={`/certificate/${enrollment.course._id}`} 
+                                        className="btn"
+                                        style={{ display: 'block', width: '100%', backgroundColor: '#f59e0b', color: 'white', textAlign: 'center', padding: '0.5rem', borderRadius: '0.25rem', fontWeight: 600 }}
+                                    >
+                                        View Certificate
+                                    </a>
+                                )}
+                                {enrollment.progress === 100 && enrollment.course?.quizzes?.length > 0 && !enrollment.passedQuiz && (
+                                    <a 
+                                        href={`/course/${enrollment.course._id}`} 
+                                        className="btn"
+                                        style={{ display: 'block', width: '100%', backgroundColor: '#ef4444', color: 'white', textAlign: 'center', padding: '0.5rem', borderRadius: '0.25rem', fontWeight: 600 }}
+                                    >
+                                        Take Final Exam
+                                    </a>
+                                )}
                             </div>
                         </div>
                     ))}

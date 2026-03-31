@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const Login = () => {
@@ -93,7 +93,7 @@ const Login = () => {
                 <div className="form-group">
                     <div className="flex justify-between">
                         <label htmlFor="password">Password</label>
-                        {isLogin && <a href="#" style={{ fontSize: '0.85rem', color: '#818cf8' }}>Forgot password?</a>}
+                        {isLogin && <Link to="/forgotpassword" style={{ fontSize: '0.85rem', color: '#818cf8', textDecoration: 'none' }}>Forgot password?</Link>}
                     </div>
                     <input
                         type="password"

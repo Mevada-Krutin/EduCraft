@@ -17,7 +17,11 @@ const enrollmentSchema = new mongoose.Schema({
     },
     completedVideos: [{
         type: mongoose.Schema.Types.ObjectId
-    }]
+    }],
+    passedQuiz: {
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Enrollment', enrollmentSchema);
