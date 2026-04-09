@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/axiosConfig';
 
 export const AuthContext = createContext();
 
@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const userInfo = localStorage.getItem('userInfo');
+        const userInfo = sessionStorage.getItem('userInfo');
         if (userInfo) {
             setUser(JSON.parse(userInfo));
         }
@@ -17,10 +17,10 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const config = { headers: { 'Content-Type': 'application/json' } };
-            const { data } = await axios.post('http://localhost:5000/api/auth/login', { email, password }, config);
+            const { data } = await api.post('/api/auth/login', { email, password });
             setUser(data);
-            localStorage.setItem('userInfo', JSON.stringify(data));
+            sessionStorage.setItem('userInfo', JSON.stringify(data));
+            sessionStorage.setItem('token', data.token);
             return { success: true };
         } catch (error) {
             return { success: false, error: error.response?.data?.message || 'Login failed' };
@@ -29,10 +29,10 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (name, email, password, role) => {
         try {
-            const config = { headers: { 'Content-Type': 'application/json' } };
-            const { data } = await axios.post('http://localhost:5000/api/auth/register', { name, email, password, role }, config);
+            const { data } = await api.post('/api/auth/register', { name, email, password, role });
             setUser(data);
-            localStorage.setItem('userInfo', JSON.stringify(data));
+            sessionStorage.setItem('userInfo', JSON.stringify(data));
+            sessionStorage.setItem('token', data.token);
             return { success: true };
         } catch (error) {
             return { success: false, error: error.response?.data?.message || 'Registration failed' };
@@ -40,12 +40,22 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
-        localStorage.removeItem('userInfo');
+        sessionStorage.removeItem('userInfo');
+        sessionStorage.removeItem('token');
         setUser(null);
     };
 
+    const updateUser = (data) => {
+        const updatedUser = { ...user, ...data };
+        setUser(updatedUser);
+        sessionStorage.setItem('userInfo', JSON.stringify(updatedUser));
+        if (data.token) {
+            sessionStorage.setItem('token', data.token);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+        <AuthContext.Provider value={{ user, setUser, login, register, logout, updateUser, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

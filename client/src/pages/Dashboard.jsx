@@ -1,8 +1,12 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import axios from 'axios';
-import CourseCard from '../components/CourseCard';
-import { Book, Clock, Award } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import api from '../utils/axiosConfig';
+import { 
+  BookOpen, Clock, Award, 
+  ChevronRight, Play, CheckCircle, ArrowRight
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
     const { user } = useContext(AuthContext);
@@ -12,139 +16,144 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchEnrollments = async () => {
             try {
-                const config = {
-                    headers: {
-                        Authorization: `Bearer ${user.token}`,
-                    },
-                };
-                const { data } = await axios.get('http://localhost:5000/api/users/enrollments', config);
-                // Filter out enrollments if the corresponding course was deleted
-                const validEnrollments = data.filter(e => e.course != null);
-                setEnrollments(validEnrollments);
-                setLoading(false);
+                const { data } = await api.get('/api/users/enrollments');
+                setEnrollments(data.filter(e => e.course != null));
             } catch (error) {
-                console.error('Error fetching enrollments:', error);
+                toast.error('Failed to load dashboard data');
+            } finally {
                 setLoading(false);
             }
         };
 
-        if (user) {
-            fetchEnrollments();
-        }
+        if (user) fetchEnrollments();
     }, [user]);
 
-    const activeCourses = enrollments.length;
+    // Calculate Stats
+    const activeCourses = enrollments.filter(e => e.progress < 100).length;
     const certificates = enrollments.filter(e => e.progress === 100).length;
     
-    let totalMinutes = 0;
-    enrollments.forEach(e => {
-        if (e.course && e.course.videos && e.completedVideos) {
-            e.course.videos.forEach(v => {
-                if (e.completedVideos.includes(v._id)) {
-                    totalMinutes += (v.duration || 5); // Fallback to 5 if duration not listed
-                }
-            });
-        }
-    });
-    const hoursWatched = Math.floor(totalMinutes / 60) || (totalMinutes > 0 ? '<1' : 0);
+    // Simulate/Calculate Hours (sum of completed video durations in minutes / 60)
+    const totalMinutes = enrollments.reduce((acc, enrollment) => {
+        const completedIds = enrollment.completedVideos || [];
+        const videos = (enrollment.course && enrollment.course.videos) || [];
+        // Use actual video duration if available, otherwise assume 5 minutes as a more conservative estimate
+        return acc + videos.filter(v => completedIds.includes(v._id)).reduce((a, v) => a + (Number(v.duration) || 5), 0);
+    }, 0);
+    const hoursWatched = (totalMinutes / 60).toFixed(1);
+
+    if (loading) return (
+        <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
 
     return (
-        <div className="animate-fade-in mt-4">
-            <div className="flex items-center gap-4 mb-5">
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#6366f1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 600 }}>
-                    {user?.name?.charAt(0)}
-                </div>
-                <div>
-                    <h2>Welcome back, {user?.name}!</h2>
-                    <p className="text-secondary">Ready to continue your learning journey?</p>
-                </div>
-            </div>
-
-            {/* Stats Summary */}
-            <div className="grid grid-cols-3 gap-4 mb-5">
-                <div className="card" style={{ padding: '1.5rem', flexDirection: 'row', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ backgroundColor: 'rgba(99,102,241,0.1)', padding: '1rem', borderRadius: '0.5rem' }}>
-                        <Book size={24} color="#818cf8" />
+        <div className="min-h-screen bg-[#0f172a] pb-20 fade-in pt-8 md:pt-12">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                {/* Header Section */}
+                <div className="flex items-center gap-6 mb-12">
+                    <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center text-primary text-3xl font-bold border border-primary/20 shadow-glow">
+                        {user?.name?.charAt(0) || 'U'}
                     </div>
                     <div>
-                        <h3 style={{ margin: 0 }}>{activeCourses}</h3>
-                        <p className="text-secondary text-sm">Active Courses</p>
+                        <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">
+                            Welcome back, {user?.name || 'Student'}!
+                        </h1>
+                        <p className="text-slate-400 text-lg">Ready to continue your learning journey?</p>
                     </div>
                 </div>
-                <div className="card" style={{ padding: '1.5rem', flexDirection: 'row', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ backgroundColor: 'rgba(16,185,129,0.1)', padding: '1rem', borderRadius: '0.5rem' }}>
-                        <Clock size={24} color="#10b981" />
-                    </div>
-                    <div>
-                        <h3 style={{ margin: 0 }}>{hoursWatched}h</h3>
-                        <p className="text-secondary text-sm">Hours Watched</p>
-                    </div>
-                </div>
-                <div className="card" style={{ padding: '1.5rem', flexDirection: 'row', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ backgroundColor: 'rgba(245,158,11,0.1)', padding: '1rem', borderRadius: '0.5rem' }}>
-                        <Award size={24} color="#f59e0b" />
-                    </div>
-                    <div>
-                        <h3 style={{ margin: 0 }}>{certificates}</h3>
-                        <p className="text-secondary text-sm">Certificates</p>
-                    </div>
-                </div>
-            </div>
 
-            {/* My Courses */}
-            <h3>My Learning</h3>
-
-            {loading ? (
-                <div className="text-center py-5">
-                    <p>Loading your courses...</p>
-                </div>
-            ) : enrollments.length === 0 ? (
-                <div className="card text-center" style={{ padding: '3rem 2rem' }}>
-                    <Book size={48} color="#94a3b8" style={{ margin: '0 auto 1rem' }} />
-                    <h3 className="mb-2">No courses yet</h3>
-                    <p className="text-secondary mb-4">Explore our catalog and start learning today!</p>
-                    <a href="/" className="btn btn-primary">Browse Courses</a>
-                </div>
-            ) : (
-                <div className="grid grid-cols-3">
-                    {enrollments.map((enrollment) => (
-                        <div key={enrollment._id} style={{ position: 'relative' }}>
-                            <CourseCard course={enrollment.course} />
-
-                            {/* Progress Bar Overlay */}
-                            <div style={{ position: 'absolute', bottom: '0', left: '0', right: '0', padding: '1.5rem', backgroundColor: 'var(--surface-color)', borderTop: '1px solid var(--border-color)', borderBottomLeftRadius: 'var(--radius-lg)', borderBottomRightRadius: 'var(--radius-lg)' }}>
-                                <div className="flex justify-between items-center text-sm mb-2">
-                                    <span>Progress</span>
-                                    <span style={{ fontWeight: 600 }}>{enrollment.progress}%</span>
-                                </div>
-                                <div style={{ width: '100%', backgroundColor: '#334155', height: '6px', borderRadius: '3px', overflow: 'hidden', marginBottom: enrollment.progress === 100 ? '1rem' : '0' }}>
-                                    <div style={{ width: `${enrollment.progress}%`, backgroundColor: '#10b981', height: '100%' }}></div>
-                                </div>
-                                {enrollment.progress === 100 && (!enrollment.course?.quizzes?.length || enrollment.passedQuiz) && (
-                                    <a 
-                                        href={`/certificate/${enrollment.course._id}`} 
-                                        className="btn"
-                                        style={{ display: 'block', width: '100%', backgroundColor: '#f59e0b', color: 'white', textAlign: 'center', padding: '0.5rem', borderRadius: '0.25rem', fontWeight: 600 }}
-                                    >
-                                        View Certificate
-                                    </a>
-                                )}
-                                {enrollment.progress === 100 && enrollment.course?.quizzes?.length > 0 && !enrollment.passedQuiz && (
-                                    <a 
-                                        href={`/course/${enrollment.course._id}`} 
-                                        className="btn"
-                                        style={{ display: 'block', width: '100%', backgroundColor: '#ef4444', color: 'white', textAlign: 'center', padding: '0.5rem', borderRadius: '0.25rem', fontWeight: 600 }}
-                                    >
-                                        Take Final Exam
-                                    </a>
-                                )}
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                    {[
+                        { label: 'Active Courses', value: activeCourses, icon: BookOpen, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                        { label: 'Hours Watched', value: `${hoursWatched}h`, icon: Clock, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                        { label: 'Certificates', value: certificates, icon: Award, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                    ].map((stat, i) => (
+                        <div key={i} className="bg-[#1e293b] border border-slate-700/50 p-8 rounded-3xl flex items-center gap-6 group hover:border-slate-600 transition-all shadow-sm">
+                            <div className={`${stat.bg} ${stat.color} w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110`}>
+                                <stat.icon size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-4xl font-bold text-white mb-0.5">{stat.value}</h3>
+                                <p className="text-slate-400 font-medium">{stat.label}</p>
                             </div>
                         </div>
                     ))}
                 </div>
-            )}
+
+                {/* My Learning Section */}
+                <div>
+                    <h2 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+                        My Learning
+                    </h2>
+                    
+                    {enrollments.length === 0 ? (
+                        <div className="bg-[#1e293b] border border-slate-700/50 border-dashed rounded-[2.5rem] p-16 text-center">
+                            <p className="text-slate-400 text-lg mb-6">You haven't enrolled in any courses yet.</p>
+                            <Link to="/courses" className="btn-primary inline-flex items-center gap-2">
+                                Browse Courses <ArrowRight size={20} />
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {enrollments.map((enrollment) => (
+                                <div key={enrollment._id} className="bg-[#1e293b] border border-slate-700/50 rounded-[2rem] overflow-hidden group hover:border-slate-600 transition-all flex flex-col shadow-lg">
+                                    <div className="h-48 bg-primary relative overflow-hidden flex items-center justify-center">
+                                       {enrollment.course.thumbnail ? (
+                                           <img 
+                                               src={enrollment.course.thumbnail.startsWith('http') ? enrollment.course.thumbnail : `http://localhost:5000${enrollment.course.thumbnail}`} 
+                                               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                               alt={enrollment.course.title}
+                                           />
+                                       ) : (
+                                           <div className="text-white text-3xl font-bold text-center px-6">
+                                               {enrollment.course.title}
+                                           </div>
+                                       )}
+                                       <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors"></div>
+                                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                           <Link to={`/course/${enrollment.course._id}`} className="bg-white text-primary p-4 rounded-full shadow-2xl transform scale-75 group-hover:scale-100 transition-transform">
+                                               <Play size={24} fill="currentColor" />
+                                           </Link>
+                                       </div>
+                                    </div>
+                                    <div className="p-8 flex-1 flex flex-col">
+                                        <div className="mb-6">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-primary mb-2 block">{enrollment.course.category}</span>
+                                            <h3 className="text-xl font-bold text-white mb-2 line-clamp-1">{enrollment.course.title}</h3>
+                                        </div>
+                                        
+                                        <div className="mt-auto">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-sm font-medium text-slate-400">Progress</span>
+                                                <span className="text-sm font-bold text-white">{enrollment.progress}%</span>
+                                            </div>
+                                            <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden mb-6">
+                                                <div 
+                                                    className="h-full bg-primary transition-all duration-1000 ease-out"
+                                                    style={{ width: `${enrollment.progress}%` }}
+                                                ></div>
+                                            </div>
+                                            <Link 
+                                                to={`/course/${enrollment.course._id}`}
+                                                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all"
+                                            >
+                                                Resume Course <ChevronRight size={18} />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
+
+
 
 export default Dashboard;

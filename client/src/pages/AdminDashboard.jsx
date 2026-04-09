@@ -1,173 +1,227 @@
-import { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
-import { Shield, User as UserIcon, Book, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import api from '../utils/axiosConfig';
+import toast from 'react-hot-toast';
+import { 
+  Users, BookOpen, CheckSquare, 
+  Layers, BarChart3, DollarSign,
+  TrendingUp, ShieldCheck, Mail,
+  Activity, Zap, Settings, 
+  ChevronRight, LayoutDashboard,
+  ShieldAlert, Database, Server
+} from 'lucide-react';
 
 const AdminDashboard = () => {
-    const { user } = useContext(AuthContext);
-    const [view, setView] = useState('users');
-    const [users, setUsers] = useState([]);
-    const [courses, setCourses] = useState([]);
+    const navigate = useNavigate();
+    const [stats, setStats] = useState({
+        totalStudents: 0,
+        totalInstructors: 0,
+        totalCourses: 0,
+        totalRevenue: 0,
+        recentEnrollments: []
+    });
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    const fetchAdminData = async () => {
-        try {
-            const config = { headers: { Authorization: `Bearer ${user.token}` } };
-            const [usersRes, coursesRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/users', config),
-                axios.get('http://localhost:5000/api/courses')
-            ]);
-            setUsers(usersRes.data);
-            setCourses(coursesRes.data);
-            setLoading(false);
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to fetch admin data');
-            setLoading(false);
-        }
-    };
 
     useEffect(() => {
-        if (user && user.role === 'admin') {
-            fetchAdminData();
-        } else {
-            setError('Not authorized to view this page');
-            setLoading(false);
-        }
-    }, [user]);
+        const fetchStats = async () => {
+            try {
+                const { data } = await api.get('/api/admin/dashboard');
+                setStats(data);
+            } catch (err) {
+                console.error('Failed to load admin data');
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchStats();
+        
+        // Polling for real-time updates every 30 seconds
+        const intervalId = setInterval(fetchStats, 30000);
+        
+        return () => clearInterval(intervalId);
+    }, []);
 
-    const handleRoleChange = async (userId, newRole) => {
-        try {
-            const config = { headers: { Authorization: `Bearer ${user.token}` } };
-            await axios.put(`http://localhost:5000/api/users/${userId}/role`, { role: newRole }, config);
-            setUsers(users.map(u => u._id === userId ? { ...u, role: newRole } : u));
-        } catch (err) {
-            alert(err.response?.data?.message || 'Failed to update user role');
+    const adminModules = [
+        { 
+            title: 'Manage Users', 
+            icon: <Users size={28} />, 
+            link: '/admin/users', 
+            desc: 'View and manage all user accounts and roles.', 
+            color: 'text-primary',
+            bg: 'bg-primary/10'
+        },
+        { 
+            title: 'Course Approval', 
+            icon: <CheckSquare size={28} />, 
+            link: '/admin/courses', 
+            desc: 'Review and approve pending course submissions.', 
+            color: 'text-emerald-500',
+            bg: 'bg-emerald-500/10'
+        },
+        { 
+            title: 'Categories', 
+            icon: <Layers size={28} />, 
+            link: '/admin/categories', 
+            desc: 'Manage course categories and organization.', 
+            color: 'text-purple-500',
+            bg: 'bg-purple-500/10'
+        },
+        { 
+            title: 'Platform Reports', 
+            icon: <BarChart3 size={28} />, 
+            link: '/admin/reports', 
+            desc: 'View detailed financial and growth analytics.', 
+            color: 'text-amber-500',
+            bg: 'bg-amber-500/10'
         }
-    };
+    ];
 
-    if (loading) return <div className="text-center py-5">Loading Admin Dashboard...</div>;
+    if (loading) return (
+        <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
 
     return (
-        <div className="animate-fade-in mt-4 max-w-6xl mx-auto px-4" style={{ padding: '2rem' }}>
-            <div className="flex justify-between items-center mb-6" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Shield size={32} color="#4f46e5" />
-                    Admin Control Panel
-                </h2>
-            </div>
+        <div className="min-h-screen bg-[#0f172a] pb-20 fade-in">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                {/* Header */}
+                <header className="mb-16 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10">
+                    <div>
+                        <div className="flex items-center gap-3 mb-6">
+                            <span className="bg-emerald-500/10 text-emerald-500 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border border-emerald-500/20">
+                                Global Administrator Hub
+                            </span>
+                        </div>
+                        <h1 className="text-5xl font-extrabold text-white tracking-tight leading-none mb-4 uppercase">
+                            Platform Control
+                        </h1>
+                        <p className="text-slate-400 text-xl font-medium max-w-2xl">
+                            Monitoring <span className="text-white font-bold">{stats.totalStudents + stats.totalInstructors} users</span> across the entire learning ecosystem.
+                        </p>
+                    </div>
+                    
+                    <div className="flex gap-4">
+                        <button className="bg-[#1e293b] border border-slate-700 text-white h-16 px-8 rounded-2xl font-bold text-sm shadow-xl hover:bg-slate-700 transition-all flex items-center gap-3">
+                            <Database size={20} className="text-primary" /> Backup Database
+                        </button>
+                    </div>
+                </header>
 
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                <button 
-                    onClick={() => setView('users')} 
-                    style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600, border: 'none', cursor: 'pointer', backgroundColor: view === 'users' ? '#4f46e5' : '#e2e8f0', color: view === 'users' ? '#fff' : '#475569' }}
-                >
-                    User Management
-                </button>
-                <button 
-                    onClick={() => setView('courses')} 
-                    style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600, border: 'none', cursor: 'pointer', backgroundColor: view === 'courses' ? '#4f46e5' : '#e2e8f0', color: view === 'courses' ? '#fff' : '#475569' }}
-                >
-                    Course Overview & Ratings
-                </button>
+                {/* Main Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
+                    {[
+                        { label: 'Total Users', value: stats.totalStudents + stats.totalInstructors, icon: Users, color: 'text-primary' },
+                        { label: 'Live Courses', value: stats.totalCourses, icon: BookOpen, color: 'text-emerald-500' },
+                        { label: 'Platform Revenue', value: `$${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-amber-500' },
+                        { label: 'System Health', value: '100%', icon: Activity, color: 'text-purple-500' },
+                    ].map((stat, i) => (
+                        <div key={i} className="bg-[#1e293b] p-8 rounded-[2.5rem] border border-slate-700/50 shadow-lg group">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className={`p-4 bg-[#0f172a] rounded-2xl border border-slate-700 ${stat.color} shadow-inner`}>
+                                    <stat.icon size={24} />
+                                </div>
+                                <TrendingUp size={20} className="text-slate-700 group-hover:text-primary transition-colors" />
+                            </div>
+                            <h3 className="text-3xl font-extrabold text-white mb-1">{stat.value}</h3>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{stat.label}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Management Modules */}
+                <section className="mb-20">
+                    <div className="flex items-center gap-4 mb-10 pb-6 border-b border-slate-700/50">
+                        <h2 className="text-2xl font-extrabold text-white uppercase tracking-tight">Administrative Tools</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {adminModules.map((module, idx) => (
+                            <Link 
+                                key={idx} 
+                                to={module.link}
+                                className="bg-[#1e293b] p-10 rounded-[3rem] group border border-slate-700/50 hover:bg-[#243147] hover:border-slate-600 transition-all relative overflow-hidden shadow-xl"
+                            >
+                                <div className={`p-5 rounded-2xl w-fit mb-8 ${module.bg} ${module.color} group-hover:scale-110 transition-transform shadow-lg`}>
+                                    {module.icon}
+                                </div>
+                                <h4 className="font-bold text-2xl text-white tracking-tight mb-4 flex items-center justify-between">
+                                    {module.title}
+                                    <ChevronRight size={24} className="text-slate-600 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                                </h4>
+                                <p className="text-slate-400 text-sm leading-relaxed font-medium">{module.desc}</p>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Recent Activity Table */}
+                <section>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 pb-6 border-b border-slate-700/50 gap-6">
+                        <h2 className="text-2xl font-extrabold text-white uppercase tracking-tight flex items-center gap-3">
+                            <Activity className="text-primary" /> Global Activity Log
+                        </h2>
+                        <Link to="/admin/reports" className="text-sm font-bold text-primary hover:underline flex items-center gap-2">
+                            View Full Audit Log <ChevronRight size={16} />
+                        </Link>
+                    </div>
+
+                    <div className="bg-[#1e293b] rounded-[3rem] overflow-hidden border border-slate-700/50 shadow-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-[#0f172a] border-b border-slate-700">
+                                        <th className="px-10 py-8 text-xs font-bold uppercase tracking-widest text-slate-500">Student Info</th>
+                                        <th className="px-10 py-8 text-xs font-bold uppercase tracking-widest text-slate-500">Enrolled In</th>
+                                        <th className="px-10 py-8 text-xs font-bold uppercase tracking-widest text-slate-500 text-right">Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700/50">
+                                    {stats.recentEnrollments.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="3" className="px-10 py-32 text-center">
+                                                <div className="flex flex-col items-center gap-8 text-slate-700">
+                                                    <ShieldAlert size={64} />
+                                                    <p className="text-xs font-bold uppercase tracking-widest">No recent enrollment activity detected.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : stats.recentEnrollments.map((enrollment) => (
+                                        <tr key={enrollment._id} className="hover:bg-[#243147] transition-all group">
+                                            <td className="px-10 py-8">
+                                                <div className="flex items-center gap-6">
+                                                    <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xl shadow-lg group-hover:scale-105 transition-transform">
+                                                        {enrollment.student?.name?.substring(0, 1) || '?'}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-white text-lg group-hover:text-primary transition-colors">{enrollment.student?.name || 'Unknown User'}</div>
+                                                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                                                            <Mail size={12} /> {enrollment.student?.email}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-10 py-8">
+                                                <div className="text-white font-bold text-base mb-1">{enrollment.course?.title || 'Deleted Course'}</div>
+                                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Transaction ID: {enrollment._id.substring(0, 8).toUpperCase()}</div>
+                                            </td>
+                                            <td className="px-10 py-8 text-right">
+                                                <div className="text-white font-bold text-sm mb-1">
+                                                    {new Date(enrollment.createdAt).toLocaleDateString()}
+                                                </div>
+                                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                                    {new Date(enrollment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
             </div>
-            
-            {error ? (
-                <div style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '1rem', borderRadius: '0.5rem' }}>{error}</div>
-            ) : view === 'users' ? (
-                <div style={{ overflowX: 'auto', backgroundColor: '#fff', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                            <tr>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Name</th>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Email</th>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Current Role</th>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(u => (
-                                <tr key={u._id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                    <td style={{ padding: '1rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
-                                            <UserIcon size={16} color="#64748b" />
-                                            {u.name}
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '1rem', color: '#64748b' }}>{u.email}</td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <span style={{
-                                            padding: '0.25rem 0.75rem', 
-                                            borderRadius: '9999px',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            backgroundColor: u.role === 'admin' ? '#fee2e2' : u.role === 'instructor' ? '#dbeafe' : '#f1f5f9',
-                                            color: u.role === 'admin' ? '#b91c1c' : u.role === 'instructor' ? '#1d4ed8' : '#475569'
-                                        }}>
-                                            {u.role.toUpperCase()}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        {u.role !== 'admin' && (
-                                            <select 
-                                                value={u.role}
-                                                onChange={(e) => handleRoleChange(u._id, e.target.value)}
-                                                style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
-                                            >
-                                                <option value="student">Student</option>
-                                                <option value="instructor">Instructor</option>
-                                            </select>
-                                        )}
-                                        {u.role === 'admin' && <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Cannot change admin role</span>}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            ) : (
-                <div style={{ overflowX: 'auto', backgroundColor: '#fff', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                            <tr>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Course Title</th>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Instructor</th>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Price</th>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Rating</th>
-                                <th style={{ padding: '1rem', fontWeight: 600, color: '#475569' }}>Reviews</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {courses.length === 0 ? (
-                                <tr>
-                                    <td colSpan="5" style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>No courses published yet.</td>
-                                </tr>
-                            ) : courses.map(c => (
-                                <tr key={c._id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                    <td style={{ padding: '1rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
-                                            <Book size={16} color="#6366f1" />
-                                            <a href={`/course/${c._id}`} target="_blank" rel="noreferrer" style={{ color: '#4f46e5', textDecoration: 'none' }}>{c.title}</a>
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '1rem', color: '#64748b' }}>{c.instructor?.name || 'Unknown'}</td>
-                                    <td style={{ padding: '1rem', color: '#64748b' }}>${c.price}</td>
-                                    <td style={{ padding: '1rem' }}>
-                                        {c.rating > 0 ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#facc15', fontWeight: 600 }}>
-                                                <Star size={16} fill="currentColor" /> {c.rating.toFixed(1)}
-                                            </div>
-                                        ) : (
-                                            <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>No ratings</span>
-                                        )}
-                                    </td>
-                                    <td style={{ padding: '1rem', color: '#64748b' }}>{c.numReviews} review{c.numReviews !== 1 ? 's' : ''}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
         </div>
     );
 };

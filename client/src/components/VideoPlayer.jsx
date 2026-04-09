@@ -1,66 +1,97 @@
 import React from 'react';
+import { 
+  Play, 
+  Maximize, 
+  CheckCircle2, 
+  Youtube, 
+  MonitorPlay,
+  CheckCircle
+} from 'lucide-react';
 
 const VideoPlayer = ({ videoUrl, title, onMarkComplete, isCompleted }) => {
-    // Simple check to determine if it's a YouTube URL to embed
-    const isYouTube = videoUrl?.includes('youtube.com') || videoUrl?.includes('youtu.be');
-
+    // Robust YouTube detection and embedding
     const getYouTubeEmbedUrl = (url) => {
         if (!url) return '';
+        
+        // Return if it's already an embed URL
         if (url.includes('youtube.com/embed/')) return url;
 
         let videoId = '';
-        if (url.includes('youtu.be/')) {
-            videoId = url.split('youtu.be/')[1].substring(0, 11);
-        } else if (url.includes('v=')) {
-            videoId = url.split('v=')[1].substring(0, 11);
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+
+        if (match && match[2].length === 11) {
+            videoId = match[2];
         }
-        return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+
+        if (videoId) {
+            return `https://www.youtube.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0`;
+        }
+
+        // Return original URL if it's not a standard YouTube link (e.g. local file)
+        return url;
     };
 
+    const isYouTube = videoUrl?.includes('youtube.com') || videoUrl?.includes('youtu.be');
+    const embedUrl = getYouTubeEmbedUrl(videoUrl);
+
     return (
-        <div className="mb-4">
-            <div className="flex justify-between items-center mb-3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 className="mb-0 m-0" style={{ margin: 0 }}>{title || 'Course Video'}</h3>
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-slate-700/50">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                        {isYouTube ? <Youtube size={24} /> : <MonitorPlay size={24} />}
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-white tracking-tight leading-none mb-1">{title || 'Lesson Video'}</h3>
+                        <p className="text-xs font-medium text-slate-500">
+                            {isYouTube ? 'YouTube Source' : 'Local Video'}
+                        </p>
+                    </div>
+                </div>
+
                 {onMarkComplete && (
                     <button
-                        className={`btn ${isCompleted ? 'bg-emerald-600 hover:bg-emerald-700' : 'btn-primary'}`}
                         onClick={onMarkComplete}
                         disabled={isCompleted}
-                        style={{
-                            opacity: isCompleted ? 0.8 : 1,
-                            cursor: isCompleted ? 'default' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.5rem 1rem',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            color: 'white',
-                            fontWeight: 600
-                        }}
+                        className={`group flex items-center gap-3 px-8 py-3 rounded-xl font-bold text-sm transition-all shadow-lg active:scale-95 ${
+                            isCompleted 
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default' 
+                            : 'bg-primary text-white hover:bg-primary-hover shadow-primary/20'
+                        }`}
                     >
                         {isCompleted ? (
                             <>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                <CheckCircle size={18} />
                                 Completed
                             </>
-                        ) : 'Mark as Complete'}
+                        ) : (
+                            <>
+                                <Play size={18} fill="currentColor" />
+                                Mark as Complete
+                            </>
+                        )}
                     </button>
                 )}
             </div>
-            <div className="video-container">
+
+            <div className="relative aspect-video rounded-[2rem] overflow-hidden bg-black shadow-2xl border border-slate-700/50 group">
                 {isYouTube ? (
                     <iframe
-                        src={getYouTubeEmbedUrl(videoUrl)}
+                        src={embedUrl}
                         title={title}
-                        frameBorder="0"
+                        className="w-full h-full border-0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                     ></iframe>
                 ) : (
-                    <video controls>
+                    <video 
+                      controls 
+                      className="w-full h-full object-contain"
+                      src={videoUrl.startsWith('http') ? videoUrl : `http://localhost:5000${videoUrl}`}
+                    >
                         <source src={videoUrl} type="video/mp4" />
-                        Your browser does not support the video tag.
+                        <p>Your browser doesn't support HTML5 video.</p>
                     </video>
                 )}
             </div>

@@ -30,6 +30,19 @@ const courseSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    thumbnail: {
+        type: String,
+        default: ''
+    },
+    previewVideo: {
+        type: String,
+        default: ''
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
     videos: [{
         title: { type: String, required: true },
         url: { type: String, required: true },
@@ -40,6 +53,12 @@ const courseSchema = new mongoose.Schema({
         options: [{ type: String, required: true }],
         correctOptionIndex: { type: Number, required: true }
     }],
+    assignments: [{
+        title: { type: String, required: true },
+        description: { type: String, required: true },
+        dueDate: { type: Date },
+        totalPoints: { type: Number, default: 100 },
+    }],
     reviews: [reviewSchema],
     rating: {
         type: Number,
@@ -47,6 +66,11 @@ const courseSchema = new mongoose.Schema({
         default: 0,
     },
     numReviews: {
+        type: Number,
+        required: true,
+        default: 0,
+    },
+    enrolledStudents: {
         type: Number,
         required: true,
         default: 0,

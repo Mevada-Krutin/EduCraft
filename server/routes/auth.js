@@ -25,6 +25,7 @@ router.post('/register', async (req, res) => {
         const user = await User.create({
             name,
             email,
+            phone: req.body.phone || '',
             password,
             role: role || 'student',
         });
@@ -34,6 +35,7 @@ router.post('/register', async (req, res) => {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone || '',
                 role: user.role,
                 token: generateToken(user._id),
             });
@@ -57,6 +59,7 @@ router.post('/login', async (req, res) => {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone || '',
                 role: user.role,
                 token: generateToken(user._id),
             });
@@ -68,64 +71,75 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// @route   POST /api/auth/forgotpassword
-// @desc    Forgot Password
-router.post('/forgotpassword', async (req, res) => {
+// @route   POST /api/auth/send-otp
+// @desc    Send 4-digit OTP to user email
+router.post('/send-otp', async (req, res) => {
     const { email } = req.body;
+    const sendEmail = require('../utils/emailConfig');
+    
     try {
         const user = await User.findOne({ email });
 
         if (!user) {
-            return res.status(404).json({ message: 'There is no user with that email' });
+            return res.status(404).json({ message: 'Email not registered' });
         }
 
-        const resetToken = user.getResetPasswordToken();
+        // Generate 4-digit OTP
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        // Save to user
+        user.resetPasswordOTP = otp;
+        user.resetPasswordOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
         await user.save();
 
-        const resetUrl = `http://localhost:5173/resetpassword/${resetToken}`;
+        // Send Email
+        const message = `Your password reset code is: ${otp}. This code is valid for 10 minutes.`;
+        console.log(`🔑 DEBUG: Generated OTP for ${email}: ${otp}`);
+        
+        await sendEmail({
+            email: user.email,
+            subject: 'Password Reset Code - EduCraft',
+            message
+        });
 
         res.status(200).json({ 
             success: true, 
-            message: 'Simulated email sent. Navigate to the link below to reset your password.',
-            resetUrl 
+            message: 'Verification code sent to your email' 
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Email could not be sent' });
+        res.status(500).json({ message: 'Error sending verification code' });
     }
 });
 
-// @route   PUT /api/auth/resetpassword/:resettoken
-// @desc    Reset Password
-router.put('/resetpassword/:resettoken', async (req, res) => {
+// @route   POST /api/auth/reset-password
+// @desc    Verify OTP and update password
+router.post('/reset-password', async (req, res) => {
+    const { email, otp, newPassword } = req.body;
     try {
-        const resetPasswordToken = crypto
-            .createHash('sha256')
-            .update(req.params.resettoken)
-            .digest('hex');
-
-        const user = await User.findOne({
-            resetPasswordToken,
-            resetPasswordExpire: { $gt: Date.now() }
+        const user = await User.findOne({ 
+            email,
+            resetPasswordOTP: otp,
+            resetPasswordOTPExpires: { $gt: Date.now() }
         });
 
         if (!user) {
-            return res.status(400).json({ message: 'Invalid or expired token' });
+            return res.status(400).json({ message: 'Invalid or expired verification code' });
         }
 
-        user.password = req.body.password;
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-
+        // Update password
+        user.password = newPassword;
+        user.resetPasswordOTP = undefined;
+        user.resetPasswordOTPExpires = undefined;
         await user.save();
 
-        res.status(200).json({
-            success: true,
-            message: 'Password reset successful',
-            token: generateToken(user._id)
+        res.status(200).json({ 
+            success: true, 
+            message: 'Password updated successfully'
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error updating password' });
     }
 });
 

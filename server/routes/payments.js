@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
 const Course = require('../models/Course');
+const Enrollment = require('../models/Enrollment');
 const { protect } = require('../middleware/authMiddleware');
 
 const stripeStr = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
@@ -81,5 +82,54 @@ router.post('/verify-session', protect, async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
+
+// @desc    Stripe Webhook Listener (Server-to-Server)
+// @access  Public
+router.webhook = async (request, response) => {
+    const sig = request.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event;
+
+    try {
+        if (!webhookSecret) {
+            console.warn('STRIPE_WEBHOOK_SECRET not set, accepting event without verification for dev.');
+            event = JSON.parse(request.body.toString());
+        } else {
+            event = stripe.webhooks.constructEvent(request.body, sig, webhookSecret);
+        }
+    } catch (err) {
+        console.error(`Webhook Error: ${err.message}`);
+        return response.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the checkout.session.completed event
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+
+        const userId = session.metadata.userId;
+        const courseId = session.metadata.courseId;
+
+        try {
+            // Check if enrollment already exists to prevent duplicates
+            const existingEnrollment = await Enrollment.findOne({ student: userId, course: courseId });
+            
+            if (!existingEnrollment) {
+                const enrollment = new Enrollment({
+                    student: userId,
+                    course: courseId,
+                });
+                await enrollment.save();
+                console.log(`✅ Webhook: Safely enrolled User ${userId} into Course ${courseId}`);
+            }
+        } catch (error) {
+            console.error('Error creating enrollment via webhook:', error);
+            // Even if DB fails, acknowledge stripe receipt so it doesn't endlessly retry if it's a fatal DB error
+        }
+    }
+
+    // Return a 200 response to acknowledge receipt of the event
+    response.send();
+};
 
 module.exports = router;
