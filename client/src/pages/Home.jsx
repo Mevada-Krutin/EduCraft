@@ -2,10 +2,10 @@ import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import CourseCard from '../components/CourseCard';
-import { 
-  BookOpen, Users, Star, 
-  ArrowRight, Sparkles, Shield, 
-  Cpu, Globe, Zap, CheckCircle2
+import {
+    BookOpen, Users, Star,
+    ArrowRight, Sparkles, Shield,
+    Cpu, Globe, Zap, CheckCircle2
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 
@@ -16,11 +16,28 @@ const Home = () => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
 
+    const [stats, setStats] = useState([
+        { label: 'Latency', value: '12ms', numeric: 12 },
+        { label: 'Uptime', value: '99.9%', numeric: 99.9 },
+        { label: 'Active Nodes', value: '2.4k', numeric: 2400 },
+        { label: 'Throughput', value: 'High', numeric: 100 }
+    ]);
+
     useEffect(() => {
         const fetchCourses = async () => {
             try {
                 const { data } = await axios.get('http://localhost:5000/api/courses');
                 setCourses(data.courses || []);
+
+                // Dynamically update Active Nodes based on real database count
+                if (data.total !== undefined) {
+                    const scaledNodes = data.total > 0 ? (data.total * 10 + 2400) : 2400; // Scaling for aesthetic scale
+                    setStats(prev => prev.map(s =>
+                        s.label === 'Active Nodes'
+                            ? { ...s, numeric: scaledNodes, value: `${(scaledNodes / 1000).toFixed(1)}k` }
+                            : s
+                    ));
+                }
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching courses:', error);
@@ -28,6 +45,25 @@ const Home = () => {
             }
         };
         fetchCourses();
+
+        // Simulation Heartbeat for technical metrics
+        const interval = setInterval(() => {
+            setStats(prev => prev.map(stat => {
+                if (stat.label === 'Latency') {
+                    const jitter = (Math.random() * 4) - 2;
+                    const newVal = Math.max(8, Math.min(22, stat.numeric + jitter));
+                    return { ...stat, numeric: newVal, value: `${newVal.toFixed(0)}ms` };
+                }
+                if (stat.label === 'Throughput') {
+                    const states = ['High', 'Peak', 'Optimal', 'Active'];
+                    const nextState = states[Math.floor(Math.random() * states.length)];
+                    return { ...stat, value: nextState };
+                }
+                return stat;
+            }));
+        }, 3000);
+
+        return () => clearInterval(interval);
     }, []);
 
     const handleGetStarted = async () => {
@@ -60,29 +96,29 @@ const Home = () => {
 
     return (
         <div className="flex flex-col gap-32 pb-32 bg-bg-main">
-            
+
             {/* Hero Section */}
             <section className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden">
                 {/* Decorative Elements */}
                 <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse-slow"></div>
                 <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-secondary/5 blur-[120px] rounded-full animate-pulse-slow animation-delay-2000"></div>
-                
+
                 <div className="container-wide relative z-10 flex flex-col items-center text-center">
                     <div className="inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-white border border-slate-200 mb-10 shadow-sm animate-in">
                         <Sparkles size={16} className="text-primary animate-pulse" />
                         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-text-secondary">Intelligence-First Learning Node</span>
                     </div>
-                    
+
                     <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-10 leading-[0.9] max-w-5xl animate-in delay-100 italic">
                         <span className="text-text-primary">EVOLVE YOUR</span><br />
                         <span className="text-gradient">SYSTEM LOGIC</span>
                     </h1>
-                    
+
                     <p className="text-xl md:text-2xl text-text-secondary max-w-3xl mb-14 animate-in delay-200 leading-relaxed font-medium">
-                        EduCraft Core 2.0 provides the architecture for professional mastery. 
+                        EduCraft Core 2.0 provides the architecture for professional mastery.
                         Deploy world-class curricula and validate your cognitive assets.
                     </p>
-                    
+
                     <div className="flex flex-col sm:flex-row gap-6 animate-in delay-300">
                         <button
                             className="btn-primary h-20 px-12 rounded-[2.5rem] text-sm font-black uppercase tracking-widest flex items-center gap-4 group"
@@ -96,7 +132,8 @@ const Home = () => {
                             )}
                         </button>
                         <button
-                            className="bg-white border border-slate-200 h-20 px-12 rounded-[2.5rem] text-sm font-black uppercase tracking-widest text-text-primary hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                            type="button"
+                            className="bg-white border border-slate-200 h-20 px-12 rounded-[2.5rem] text-sm font-black uppercase tracking-widest text-gray-800 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
                             onClick={() => navigate('/courses')}
                         >
                             Explore Intelligence Matrix
@@ -104,20 +141,15 @@ const Home = () => {
                     </div>
 
                     {/* Performance Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-32 mt-32 animate-in delay-500">
-                        {[
-                            { label: 'Latency', value: '12ms' },
-                            { label: 'Uptime', value: '99.9%' },
-                            { label: 'Active Nodes', value: '2.4k' },
-                            { label: 'Throughput', value: 'High' }
-                        ].map((stat, i) => (
+                    {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-32 mt-32 animate-in delay-500">
+                        {stats.map((stat, i) => (
                             <div key={i} className="flex flex-col items-center">
                                 <span className="text-4xl font-black text-text-primary tracking-tighter">{stat.value}</span>
                                 <div className="h-1 w-8 bg-primary/20 rounded-full my-2"></div>
                                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted">{stat.label}</span>
                             </div>
                         ))}
-                    </div>
+                    </div> */}
                 </div>
             </section>
 
@@ -172,7 +204,7 @@ const Home = () => {
                         <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4 block">Deployment Buffer</span>
                         <h2 className="text-5xl md:text-6xl font-black tracking-tight text-text-primary">INTELLIGENCE MATRIX</h2>
                     </div>
-                    <button 
+                    <button
                         onClick={() => navigate('/courses')}
                         className="flex items-center gap-4 px-8 py-4 bg-white border border-slate-200 rounded-[2rem] text-[10px] font-black uppercase tracking-widest text-text-primary hover:text-primary hover:border-primary/30 transition-all group shadow-sm"
                     >
@@ -206,7 +238,7 @@ const Home = () => {
                 <div className="relative rounded-[4rem] overflow-hidden p-16 md:p-32 bg-slate-900 group shadow-2xl">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20"></div>
                     <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-primary/10 blur-[140px] rounded-full rotate-12"></div>
-                    
+
                     <div className="relative z-10 flex flex-col items-center text-center max-w-4xl mx-auto gap-12">
                         <div className="w-24 h-24 bg-white/10 backdrop-blur-xl rounded-[2rem] border border-white/20 flex items-center justify-center shadow-2xl animate-pulse-slow">
                             <CheckCircle2 size={48} className="text-white" />
@@ -217,7 +249,7 @@ const Home = () => {
                         <p className="text-xl text-white/70 font-medium leading-relaxed">
                             Join the next generation of architects, engineers, and creatives building on the EduCraft Core protocol.
                         </p>
-                        <button 
+                        <button
                             className="h-20 px-16 bg-white text-slate-900 rounded-[2.5rem] text-sm font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all"
                             onClick={() => navigate('/login')}
                         >

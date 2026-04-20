@@ -5,7 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { 
     Mail, Lock, User, 
     ArrowRight, ChevronLeft, GraduationCap,
-    Eye, EyeOff
+    Eye, EyeOff, ShieldCheck
 } from 'lucide-react';
 
 const Login = () => {
@@ -15,8 +15,10 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [step, setStep] = useState(1); // 1: Details, 2: OTP
+    const [otp, setOtp] = useState('');
 
-    const { login, register, user } = useContext(AuthContext);
+    const { login, register, sendSignupOTP, user } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -32,14 +34,34 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!isLogin && step === 1) {
+            const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
+            const domain = email.split('@')[1];
+            const isInstitutional = domain.endsWith('.edu') || domain.endsWith('.ac.in');
+            
+            if (!allowedDomains.includes(domain) && !isInstitutional) {
+                toast.error('Please use Gmail, Yahoo, Outlook, Hotmail, or an institutional (.edu / .ac.in) email');
+                return;
+            }
+        }
+
         setLoading(true);
 
         try {
             let result;
             if (isLogin) {
                 result = await login(email, password);
+            } else if (step === 1) {
+                result = await sendSignupOTP(name, email, password, 'student');
+                if (result.success) {
+                    toast.success(result.message);
+                    setStep(2);
+                    setLoading(false);
+                    return;
+                }
             } else {
-                result = await register(name, email, password, 'student');
+                result = await register(email, otp);
             }
 
             if (result.success) {
@@ -77,77 +99,113 @@ const Login = () => {
                 {/* Auth Card */}
                 <div className="bg-[#1e293b] border border-slate-700/50 rounded-3xl p-8 sm:p-10 shadow-2xl">
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {!isLogin && (
-                            <div className="space-y-2">
-                                <label htmlFor="full-name" className="text-sm font-semibold text-slate-300 ml-1">Full Name</label>
-                                <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
-                                        <User size={20} />
+                        {!isLogin && step === 2 ? (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label htmlFor="otp" className="text-sm font-semibold text-slate-300 ml-1">6-Digit Verification Code</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
+                                            <ShieldCheck size={20} />
+                                        </div>
+                                        <input
+                                            id="otp"
+                                            name="otp"
+                                            type="text"
+                                            maxLength="6"
+                                            className="w-full bg-[#0f172a] border border-slate-700 h-14 pl-12 pr-4 rounded-xl text-white placeholder:text-slate-600 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-all tracking-[0.3em] font-black text-xl"
+                                            placeholder="000000"
+                                            value={otp}
+                                            onChange={(e) => setOtp(e.target.value)}
+                                            required
+                                        />
                                     </div>
-                                    <input
-                                        id="full-name"
-                                        name="name"
-                                        type="text"
-                                        autoComplete="name"
-                                        className="w-full bg-[#0f172a] border border-slate-700 h-14 pl-12 pr-4 rounded-xl text-white placeholder:text-slate-600 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
-                                        placeholder="John Doe"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        required
-                                    />
+                                    <p className="text-xs text-slate-500 ml-1">
+                                        Enter the code sent to <span className="text-primary font-medium">{email}</span>
+                                    </p>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setStep(1)}
+                                    className="text-primary text-xs font-bold hover:underline ml-1"
+                                >
+                                    Change details?
+                                </button>
                             </div>
+                        ) : (
+                            <>
+                                {!isLogin && (
+                                    <div className="space-y-2">
+                                        <label htmlFor="full-name" className="text-sm font-semibold text-slate-300 ml-1">Full Name</label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
+                                                <User size={20} />
+                                            </div>
+                                            <input
+                                                id="full-name"
+                                                name="name"
+                                                type="text"
+                                                autoComplete="name"
+                                                className="w-full bg-[#0f172a] border border-slate-700 h-14 pl-12 pr-4 rounded-xl text-white placeholder:text-slate-600 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
+                                                placeholder="John Doe"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <label htmlFor="email" className="text-sm font-semibold text-slate-300 ml-1">Email Address</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
+                                            <Mail size={20} />
+                                        </div>
+                                        <input
+                                            id="email"
+                                            name="email"
+                                            type="email"
+                                            autoComplete="username email"
+                                            className="w-full bg-[#0f172a] border border-slate-700 h-14 pl-12 pr-4 rounded-xl text-white placeholder:text-slate-600 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
+                                            placeholder="you@example.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center ml-1">
+                                        <label htmlFor="password" name="password" className="text-sm font-semibold text-slate-300">Password</label>
+                                        <Link to="/forgot-password" size={12} className="text-primary text-xs font-bold hover:underline">Forgot Password?</Link>
+                                    </div>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
+                                            <Lock size={20} />
+                                        </div>
+                                        <input
+                                            id="password"
+                                            name="password"
+                                            type={showPassword ? "text" : "password"}
+                                            autoComplete={isLogin ? "current-password" : "new-password"}
+                                            className="w-full bg-[#0f172a] border border-slate-700 h-14 pl-12 pr-12 rounded-xl text-white placeholder:text-slate-600 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
+                                            placeholder="••••••••"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors focus:outline-none"
+                                        >
+                                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
                         )}
-
-                        <div className="space-y-2">
-                            <label htmlFor="email" className="text-sm font-semibold text-slate-300 ml-1">Email Address</label>
-                            <div className="relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
-                                    <Mail size={20} />
-                                </div>
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="username email"
-                                    className="w-full bg-[#0f172a] border border-slate-700 h-14 pl-12 pr-4 rounded-xl text-white placeholder:text-slate-600 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
-                                    placeholder="you@example.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center ml-1">
-                                <label htmlFor="password" name="password" className="text-sm font-semibold text-slate-300">Password</label>
-                                <Link to="/forgot-password" size={12} className="text-primary text-xs font-bold hover:underline">Forgot Password?</Link>
-                            </div>
-                                <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
-                                        <Lock size={20} />
-                                    </div>
-                                    <input
-                                        id="password"
-                                        name="password"
-                                        type={showPassword ? "text" : "password"}
-                                        autoComplete={isLogin ? "current-password" : "new-password"}
-                                        className="w-full bg-[#0f172a] border border-slate-700 h-14 pl-12 pr-12 rounded-xl text-white placeholder:text-slate-600 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
-                                        placeholder="••••••••"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors focus:outline-none"
-                                    >
-                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                    </button>
-                                </div>
-                        </div>
 
                         <button
                             type="submit"
@@ -158,7 +216,7 @@ const Login = () => {
                                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
                                 <>
-                                    {isLogin ? 'Sign In' : 'Create Account'}
+                                    {isLogin ? 'Sign In' : (step === 1 ? 'Send Verification Code' : 'Verify & Create Account')}
                                     <ArrowRight size={20} />
                                 </>
                             )}

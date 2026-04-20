@@ -114,7 +114,7 @@ const CourseDetail = () => {
                 amount: order.amount,
                 currency: order.currency,
                 name: "EduCraft Core",
-                description: `Enrollment for ${course.title}`,
+                description: `Enrollment for ${course.title.replace(/[^a-zA-Z0-9 ]/g, '')}`,
                 image: "https://cdn-icons-png.flaticon.com/512/3135/3135810.png",
                 order_id: order.id,
                 handler: async (response) => {

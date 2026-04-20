@@ -11,7 +11,15 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true,
+        lowercase: true,
+        trim: true,
     },
+    isEmailVerified: {
+        type: Boolean,
+        default: false,
+    },
+    signupOTP: String,
+    signupOTPExpires: Date,
     phone: {
         type: String,
         default: '',
